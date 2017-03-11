@@ -3,8 +3,28 @@ A text communication server that encrypts messages received and send using the R
 algorithm. 
 '''
 import socket
+import rsa
+from collections import deque
 
+    
 class Server:
+    class Client:
+        '''
+        The server will use a different private key for each client that connects. 
+        So the client class is responsible for containing the server's private key 
+        for the client instance as well. 
+        '''
+        def __init__(self, sock):
+            self.sock = sock
+            #self.pub_key = pub_key #encrypt with this key (clients actual public key)
+            #self.priv_key = ser_priv_key #decrypt with this key
+            self.listen()
+            return
+        
+        def listen(self):
+            #this method will wait for a message to be received from the client
+            pass
+        
     def __init__(self):
         #create an INET, STREAMing socket
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -12,9 +32,13 @@ class Server:
         self.s.bind((socket.gethostname(),8029))
         #now actually become publicly accessible
         self.s.listen(5)
+        self.clients = deque()
         self.begin_loop()
         return
     
+    def broadcast(self, message):
+        pass
+        
     def begin_loop(self):
         while 1:
             #wait for a connection to occur
@@ -30,7 +54,8 @@ class Server:
             also, eventually, be responsible for containing the client's 
             public RSA key when encryption is implemented.
             '''
-            
+            self.clients.append(clientsocket)
+            self.handle(clientsocket)
         return
 
 if __name__ == '__main__':
