@@ -5,25 +5,56 @@ algorithm.
 import socket
 import rsa
 from collections import deque
+from threading import Thread, current_thread
 
+MSGLEN = 512 #each msg should be 512 or less chars 
+
+class Client:
+    '''
+    The server will use a different private key for each client that connects. 
+    So the client class is responsible for containing the server's private key 
+    for the client instance as well. 
+    '''
+    def __init__(self, sock):
+        self.sock = sock
+        ''' 
+        self.pub is now what we send the client for when the client sends to the server.
+        self.priv is what the server uses to decrypt data received from the client.
+        Since generating a new keypair takes several seconds, it may be a better idea to wait
+        until a new thread is created to generate the keys
+         '''
+        (self.pub, self.priv) = rsa.newkeys(1024)
+        return
     
+    def send(self, msg):
+        #write msg to self.sock
+        totalsent = 0
+        while totalsent < MSGLEN:
+            sent = self.sock.send(msg[totalsent:])
+            if sent == 0:
+                raise RuntimeError("socket connection broken")
+            totalsent = totalsent + sent
+        return
+    
+    def get_sock(self):
+        return self.sock
+    def get_pub(self):
+        return self.pub
+    def recv(self, len):
+        chunks = []
+        bytes_recd = 0
+        while bytes_recd < MSGLEN:
+            chunk = self.sock.recv(min(MSGLEN - bytes_recd, 2048))
+            if chunk == '':
+                current_thread()
+                raise RuntimeError("socket connection broken")
+            chunks.append(chunk)
+            bytes_recd = bytes_recd + len(chunk)
+        return ''.join(chunks) #need to decode msg first
+    
+   
 class Server:
-    class Client:
-        '''
-        The server will use a different private key for each client that connects. 
-        So the client class is responsible for containing the server's private key 
-        for the client instance as well. 
-        '''
-        def __init__(self, sock):
-            self.sock = sock
-            #self.pub_key = pub_key #encrypt with this key (clients actual public key)
-            #self.priv_key = ser_priv_key #decrypt with this key
-            self.listen()
-            return
-        
-        def listen(self):
-            #this method will wait for a message to be received from the client
-            pass
+    
         
     def __init__(self):
         #create an INET, STREAMing socket
@@ -37,7 +68,32 @@ class Server:
         return
     
     def broadcast(self, message):
-        pass
+        #loop through clients, calling send() on each of them
+        for client in self.clients:
+            try:
+                client.send(message)
+            except RuntimeError:
+                #remove the client that caused the issue and continue
+                self.clients.remove(client)
+                continue
+                
+        return
+    
+    '''Create a new thread dedicated to listening on the client's socket'''
+    def handle_client(self, client):
+        sock = client.get_sock()
+        client.send(client.get_pub()) # send the servers public key to the client
+        while 1:
+            #recv() msg from client
+            try:
+                msg = client.recv(MSGLEN)
+            except RuntimeError:
+                # break out of the thread if the message was not received properly
+                #and also remove the client from clients
+                self.clients.remove(client)
+                return
+            self.broadcast(msg)
+        return
         
     def begin_loop(self):
         while 1:
@@ -54,9 +110,12 @@ class Server:
             also, eventually, be responsible for containing the client's 
             public RSA key when encryption is implemented.
             '''
-            self.clients.append(clientsocket)
-            self.handle(clientsocket)
+            new_client = Client(clientsocket)
+            self.clients.append(new_client)
+            #create a new thread with the function called
+            Thread(target=self.handle_client,args=(new_client,)).start()
         return
 
 if __name__ == '__main__':
-    pass
+    print("Starting server...")
+    Server()
