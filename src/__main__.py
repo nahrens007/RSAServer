@@ -1,6 +1,12 @@
 '''
 A text communication server that encrypts messages received and send using the RSA 
 algorithm. 
+The idea is that, we have a Client object which contains the connection socket as 
+well as a set of private and public RSA keys. The private key will be the key that 
+the server uses to decrypt messages received from the client. The public key will
+be the key that the server uses to encrypt messages to be sent to the client. It 
+must be received from the client. The public key generated as the keypair with the 
+private key must be sent to the client.
 '''
 import socket
 import rsa
@@ -24,33 +30,34 @@ class Client:
         until a new thread is created to generate the keys
          '''
         (self.pub, self.priv) = rsa.newkeys(1024)
+        self.writer = self.sock.makefile(mode='w')
         return
     
     def send(self, msg):
         #write msg to self.sock
-        totalsent = 0
-        while totalsent < MSGLEN:
-            sent = self.sock.send(msg[totalsent:])
-            if sent == 0:
-                raise RuntimeError("socket connection broken")
-            totalsent = totalsent + sent
+        '''Unlike send(bytes), the sendall(bytes) method continues to send data from bytes until either all 
+        data has been sent or an error occurs. None is returned on success. On error, an 
+        exception is raised, and there is no way to determine how much data, if any, was 
+        successfully sent.'''
+        '''sent = self.sock.sendall(str(msg).encode('utf-8'))
+        if sent is None:
+            print("sent msg successfully!")
+        else:
+            print("did not send msg!")'''
+        self.writer.write(msg)
+        self.writer.flush()
         return
     
     def get_sock(self):
         return self.sock
     def get_pub(self):
         return self.pub
-    def recv(self, len):
-        chunks = []
-        bytes_recd = 0
-        while bytes_recd < MSGLEN:
-            chunk = self.sock.recv(min(MSGLEN - bytes_recd, 2048))
-            if chunk == '':
-                current_thread()
-                raise RuntimeError("socket connection broken")
-            chunks.append(chunk)
-            bytes_recd = bytes_recd + len(chunk)
-        return ''.join(chunks) #need to decode msg first
+    def recv(self):
+        msg = self.sock.recv(MSGLEN)
+        if msg == b'':
+            current_thread()
+            raise RuntimeError("socket connection broken")
+        return msg.decode('utf-8') #need to decode msg before returning
     
    
 class Server:
@@ -76,17 +83,16 @@ class Server:
                 #remove the client that caused the issue and continue
                 self.clients.remove(client)
                 continue
-                
         return
     
-    '''Create a new thread dedicated to listening on the client's socket'''
+    '''function should be called on a new thread, dedicated to listening for a new message'''
     def handle_client(self, client):
-        sock = client.get_sock()
-        client.send(client.get_pub()) # send the servers public key to the client
+        client.send(str(client.get_pub())) # send the servers public key to the client
         while 1:
             #recv() msg from client
             try:
-                msg = client.recv(MSGLEN)
+                msg = client.recv()
+                print("msg recv: ", msg)
             except RuntimeError:
                 # break out of the thread if the message was not received properly
                 #and also remove the client from clients
