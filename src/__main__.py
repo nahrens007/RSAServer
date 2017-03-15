@@ -29,8 +29,11 @@ class Client:
         Since generating a new keypair takes several seconds, it may be a better idea to wait
         until a new thread is created to generate the keys
          '''
-        (self.pub, self.priv) = rsa.newkeys(1024)
+        (self.pub, self.priv) = rsa.newkeys(1024) #generate 1024 bit key pair
+        #create a file writer out of the socket instead of writing directly
+        #to the socket
         self.writer = self.sock.makefile(mode='w')
+        self.send(str(self.pub))# send the server's public key to the client
         return
     
     def send(self, msg):
@@ -44,6 +47,7 @@ class Client:
             print("sent msg successfully!")
         else:
             print("did not send msg!")'''
+        # write using file writer instead of raw socket
         self.writer.write(msg)
         self.writer.flush()
         return
@@ -87,7 +91,6 @@ class Server:
     
     '''function should be called on a new thread, dedicated to listening for a new message'''
     def handle_client(self, client):
-        client.send(str(client.get_pub())) # send the servers public key to the client
         while 1:
             #recv() msg from client
             try:
