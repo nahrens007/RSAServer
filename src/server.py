@@ -130,6 +130,5 @@ class Server:
             
         return
 
-if __name__ == '__main__':
-    print("Starting server...")
-    Server()
+print("Starting server...")
+Server()
