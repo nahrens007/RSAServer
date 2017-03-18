@@ -10,6 +10,7 @@ private key must be sent to the client.
 '''
 import socket
 import rsa
+import time
 from collections import deque
 from threading import Thread, current_thread
 
@@ -33,7 +34,6 @@ class Client:
         #create a file writer out of the socket instead of writing directly
         #to the socket
         self.writer = self.sock.makefile(mode='w')
-        self.send(str(self.pub))# send the server's public key to the client
         return
     
     def send(self, msg):
@@ -55,7 +55,7 @@ class Client:
     def get_sock(self):
         return self.sock
     def get_pub(self):
-        return self.pub
+        return str(self.pub)
     def recv(self):
         msg = self.sock.recv(MSGLEN)
         if msg == b'':
@@ -70,8 +70,8 @@ class Server:
     def __init__(self):
         #create an INET, STREAMing socket
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #bind the socket, making it public
-        self.s.bind((socket.gethostname(),8029))
+        #bind the socket, making it public; anyone can connect to the socket (localhost, ip, PC name...)
+        self.s.bind(('',8029))
         #now actually become publicly accessible
         self.s.listen(5)
         self.clients = deque()
@@ -94,21 +94,22 @@ class Server:
         while 1:
             #recv() msg from client
             try:
+                print("handle client")
                 msg = client.recv()
+                self.broadcast(msg)
                 print("msg recv: ", msg)
             except RuntimeError:
                 # break out of the thread if the message was not received properly
                 #and also remove the client from clients
                 self.clients.remove(client)
                 return
-            self.broadcast(msg)
         return
         
     def begin_loop(self):
         while 1:
             #wait for a connection to occur
             (clientsocket, address) = self.s.accept()
-            
+
             '''
             Now clientsocket needs to be passed on to a child thread
             and set up for broadcasting, etc... One way to do this 
@@ -121,8 +122,14 @@ class Server:
             '''
             new_client = Client(clientsocket)
             self.clients.append(new_client)
+            print("Client created")
             #create a new thread with the function called
             Thread(target=self.handle_client,args=(new_client,)).start()
+            time.sleep(2)
+            print("sending")
+            new_client.send(new_client.get_pub())
+            print("sent")
+            self.broadcast('hello world')
         return
 
 if __name__ == '__main__':
