@@ -48,7 +48,7 @@ class Client:
         else:
             print("did not send msg!")'''
         # write using file writer instead of raw socket
-        self.writer.write(msg)
+        self.writer.write(str(msg) + '\r')
         self.writer.flush()
         return
     
@@ -80,6 +80,7 @@ class Server:
     
     def broadcast(self, message):
         #loop through clients, calling send() on each of them
+        print(len(self.clients))
         for client in self.clients:
             try:
                 client.send(message)
@@ -94,10 +95,9 @@ class Server:
         while 1:
             #recv() msg from client
             try:
-                print("handle client")
                 msg = client.recv()
-                self.broadcast(msg)
-                print("msg recv: ", msg)
+                self.broadcast(msg[0:len(msg)-2])
+                print("msg recv: ", msg[0:len(msg)-2])
             except RuntimeError:
                 # break out of the thread if the message was not received properly
                 #and also remove the client from clients
@@ -122,14 +122,12 @@ class Server:
             '''
             new_client = Client(clientsocket)
             self.clients.append(new_client)
-            print("Client created")
-            #create a new thread with the function called
-            Thread(target=self.handle_client,args=(new_client,)).start()
-            time.sleep(2)
-            print("sending")
+            
             new_client.send(new_client.get_pub())
-            print("sent")
-            self.broadcast('hello world')
+
+            #create a new thread with the function called to listen for client messages
+            Thread(target=self.handle_client,args=(new_client,)).start()
+            
         return
 
 if __name__ == '__main__':
