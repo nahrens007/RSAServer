@@ -70,7 +70,9 @@ class Server:
     def __init__(self):
         #create an INET, STREAMing socket
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        #bind the socket, making it public; anyone can connect to the socket (localhost, ip, PC name...)
+        #make so "Address already in use" errors don't happen (common practice with sockets)
+        self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		#bind the socket, making it public; anyone can connect to the socket (localhost, ip, PC name...)
         self.s.bind(('',8029))
         #now actually become publicly accessible
         self.s.listen(5)
@@ -96,8 +98,8 @@ class Server:
             #recv() msg from client
             try:
                 msg = client.recv()
-                self.broadcast(msg[0:len(msg)-2])
-                print("msg recv: ", msg[0:len(msg)-2])
+                self.broadcast(msg)
+                print("msg recv: ", msg)
             except RuntimeError:
                 # break out of the thread if the message was not received properly
                 #and also remove the client from clients
