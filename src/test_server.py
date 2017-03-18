@@ -11,7 +11,7 @@ private key must be sent to the client.
 import socket
 import time
 from collections import deque
-from threading import Thread, current_thread
+from threading import Thread, current_thread, Lock
 
 MSGLEN = 512 #each msg should be 512 or less chars 
    
@@ -33,7 +33,7 @@ class Server:
         try:
             writer = sock.makefile(mode='w')
             writer.write(msg)
-            writer.flush()
+            #writer.flush()
             writer.close()
         except RuntimeError:
             #remove the client that caused the issue and continue
@@ -44,16 +44,10 @@ class Server:
     def broadcast(self, message):
         #loop through clients, calling send() on each of them
         for sock in self.socks:
-            try:
-                writer = sock.makefile(mode='w')
-                writer.write(message)
-                writer.flush()
-                writer.close()
-            except RuntimeError:
-                #remove the client that caused the issue and continue
-                self.socks.remove(sock)
-                print('error sending, removing sock')
-                continue
+            lock = Lock()
+            lock.acquire()
+            self.send(sock, message)
+            lock.release()
         return
     
     '''function should be called on a new thread, dedicated to listening for a new message'''
@@ -61,26 +55,17 @@ class Server:
         while 1:
             #recv() msg from client
             try:
-                print("waiting for rcv")
                 msg = sock.recv(MSGLEN)
-                print("after rcv")
                 if msg == b'':
                     current_thread()
                     raise RuntimeError("socket connection broken")
             
                 self.broadcast(msg.decode('utf-8'))
-                print("msg recv: ", msg)
             except RuntimeError:
                 # break out of the thread if the message was not received properly
                 #and also remove the client from clients
                 self.socks.remove(sock)
                 return
-        return
-    
-    def test(self, sock):
-        print("New thread. Sleeping and sending hello!")
-        time.sleep(5)
-        self.send(sock, "Hello world")
         return
      
          
@@ -100,10 +85,11 @@ class Server:
             public RSA key when encryption is implemented.
             '''
             self.socks.append(clientsocket)
-            print("Client created")
+            print("Client created - sending msg")
+            self.broadcast('client connected.')
+            self.send(clientsocket, 'Hello world, this is in loop.') #this should work but it doesn't. don't receive until something is broadcasted. 
             #create a new thread with the function called
             Thread(target=self.handle_client,args=(clientsocket,)).start()
-            Thread(target=self.test, args=(clientsocket,)).start()
         return
 
 
