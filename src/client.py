@@ -11,22 +11,24 @@ class Client:
         # send pub key to server; keep priv key.
         # receive the server's public key
         try:
-            self.server_pub = self.sock.recv(512)
+            pub = self.sock.recv(512)
+            self.server_pub = rsa.key.PublicKey.load_pkcs1(pub, 'PEM')
         except OSError:
             return
         except:
             print("Server shut down...")
             self.sock.shutdown(socket.SHUT_RDWR)
             self.sock.close()
+            raise RuntimeError('Server shut down')
             return
-        if self.server_pub == b'':
+        if pub == b'':
             print("server shut down")
             return
         
         
 
     def send(self, msg):
-        msg = rsa.encrypt(msg, str(self.server_pub).encode())
+        msg = rsa.encrypt(msg.encode(), self.server_pub)
         sent = self.sock.sendall((str(msg) + '\r\n').encode())
         if sent is not None:
             raise RuntimeError("socket connection broken")
