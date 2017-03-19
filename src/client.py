@@ -26,10 +26,12 @@ class Client:
             return
         
         
+        
 
     def send(self, msg):
         msg = rsa.encrypt(msg.encode(), self.server_pub)
-        sent = self.sock.sendall((str(msg) + '\r\n').encode())
+        print("Sending msg: ", msg)
+        sent = self.sock.sendall(msg)
         if sent is not None:
             raise RuntimeError("socket connection broken")
         return
@@ -53,7 +55,7 @@ class Client:
             if msg == b'':
                 raise RuntimeError("socket connection broken")
             
-            print(msg)
+            print("server: ", msg)
         return
     
 #ip = input('ip address: ')
@@ -63,6 +65,7 @@ port = 8029
 client = Client(ip, port)
 rcvThread = Thread(target=client.receive)
 rcvThread.start()
+client.send(client.pub.save_pkcs1('PEM').decode())
 while True:
     msg = input()
     if msg == 'exit':
