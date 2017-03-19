@@ -106,8 +106,8 @@ class Server:
             #recv() msg from client
             try:
                 msg = client.recv()
-                self.broadcast(msg[0:len(msg)-2])
-                print("msg recv: ", msg[0:len(msg)-2])
+                self.broadcast(msg.strip('\r\n'))
+                print("msg recv: ", msg.strip('\r\n'))
             except RuntimeError:
                 print("Removing client...")
                 # break out of the thread if the message was not received properly
