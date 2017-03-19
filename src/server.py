@@ -52,16 +52,23 @@ class Client:
         self.writer.flush()
         return
     
+    def decrypt(self, msg):
+        print("decoding ", msg.decode('utf-8').encode('utf-8'))
+        msg = rsa.decrypt(msg.decode('utf-8').encode('utf-8'), self.priv)
+        print("decrypted: ", msg)
+        return str(msg)
     def get_sock(self):
         return self.sock
+    def get_priv(self):
+        return self.priv;
     def get_pub(self):
-        return str(self.pub)
+        return self.pub
     def recv(self):
         msg = self.sock.recv(MSGLEN)
         if msg == b'':
             current_thread()
             raise RuntimeError("socket connection broken")
-        return msg.decode('utf-8') #need to decode msg before returning
+        return self.decrypt(msg) #need to decode msg before returning
     
    
 class Server:
@@ -101,7 +108,8 @@ class Server:
                 msg = client.recv()
                 self.broadcast(msg[0:len(msg)-2])
                 print("msg recv: ", msg[0:len(msg)-2])
-            except:
+            except RuntimeError:
+                print("Removing client...")
                 # break out of the thread if the message was not received properly
                 #and also remove the client from clients
                 self.clients.remove(client)
@@ -126,7 +134,8 @@ class Server:
             new_client = Client(clientsocket)
             self.clients.append(new_client)
             
-            new_client.send(new_client.get_pub())
+            new_client.send(new_client.get_pub().save_pkcs1('PEM').decode())
+            print(new_client.get_pub().save_pkcs1('PEM').decode())
 
             #create a new thread with the function called to listen for client messages
             Thread(target=self.handle_client,args=(new_client,)).start()
