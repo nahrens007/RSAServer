@@ -10,7 +10,6 @@ private key must be sent to the client.
 '''
 import socket
 import rsa
-import time
 from collections import deque
 from threading import Thread, current_thread
 
@@ -48,23 +47,26 @@ class Client:
         else:
             print("did not send msg!")'''
         # write using file writer instead of raw socket
-        self.writer.write(str(msg) + '\r')
+        self.writer.write(msg + '\r')
         self.writer.flush()
         return
     
     def decrypt(self, msg):
-        print("decoding ", msg.decode('utf-8').encode('utf-8'))
-        msg = rsa.decrypt(msg.decode('utf-8').encode('utf-8'), self.priv)
+        encrypted = msg
+        msg = rsa.decrypt(encrypted, self.priv)
         print("decrypted: ", msg)
-        return str(msg)
+        return msg.decode()
     def get_sock(self):
         return self.sock
     def get_priv(self):
         return self.priv;
     def get_pub(self):
         return self.pub
+    def set_pub(self, pub):
+        self.pub = pub
     def recv(self):
         msg = self.sock.recv(MSGLEN)
+        print ("RECEIVED: ", msg)
         if msg == b'':
             current_thread()
             raise RuntimeError("socket connection broken")
@@ -79,7 +81,7 @@ class Server:
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         #make so "Address already in use" errors don't happen (common practice with sockets)
         self.s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		#bind the socket, making it public; anyone can connect to the socket (localhost, ip, PC name...)
+        #bind the socket, making it public; anyone can connect to the socket (localhost, ip, PC name...)
         self.s.bind(('',8029))
         #now actually become publicly accessible
         self.s.listen(5)
@@ -102,12 +104,20 @@ class Server:
     
     '''function should be called on a new thread, dedicated to listening for a new message'''
     def handle_client(self, client):
+        # before entering loop, receive public key from client
+        try:
+            pub = client.recv()
+        except:
+            self.clients.remove(client)
+            return
+        pub = rsa.key.PublicKey.load_pkcs1(pub, 'PEM')
+        client.set_pub(pub)
         while 1:
             #recv() msg from client
             try:
                 msg = client.recv()
                 self.broadcast(msg.strip('\r\n'))
-                print("msg recv: ", msg.strip('\r\n'))
+                print("RECEIVED: ", msg.strip('\r\n'))
             except RuntimeError:
                 print("Removing client...")
                 # break out of the thread if the message was not received properly
