@@ -84,7 +84,8 @@ class Server:
         for client in self.clients:
             try:
                 client.send(message)
-            except RuntimeError:
+            except:
+                print("Client disconnected...")
                 #remove the client that caused the issue and continue
                 self.clients.remove(client)
                 continue
@@ -98,7 +99,7 @@ class Server:
                 msg = client.recv()
                 self.broadcast(msg[0:len(msg)-2])
                 print("msg recv: ", msg[0:len(msg)-2])
-            except RuntimeError:
+            except:
                 # break out of the thread if the message was not received properly
                 #and also remove the client from clients
                 self.clients.remove(client)
