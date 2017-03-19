@@ -20,4 +20,5 @@ a_key = '-----BEGIN RSA PUBLIC KEY-----\nMIGJAoGBAL3PtrjCa1Zdnn8LT75TbXe8uWLzDjx
 ano = rsa.key.PublicKey.load_pkcs1(a_key, 'PEM')
 print(ano)
 
-print("Hello world!\r\n".strip('\r\n'))
+print("Hello world!\r".strip('\r\n')) #string can have just \r or \n, it will still strip
+
